@@ -1,4 +1,4 @@
-classdef Cmac < handle
+classdef Cmac 
     %CMAC Summary of this class goes here
     %   Detailed explanation goes here
     
@@ -24,7 +24,6 @@ classdef Cmac < handle
                 , memsize, numinputs ...
                 , numoutputs, minstate, maxstate)
             %CMAC Construct an instance of this class
-            %   Detailed explanation goes here
             obj.mMem = zeros(memsize,numoutputs);
             
             obj.mHashtable = zeros(1,numinputs*numLayers*numQ + numQ*numLayers + numQ);
@@ -58,8 +57,11 @@ classdef Cmac < handle
         end
         
         function output = GetOutput(obj, originalinputs)
-            %METHOD1 Summary of this method goes here
-            %   Detailed explanation goes here
+            %GETOUTPUT Summary of this method goes here
+            %   Normalizes the inputs, finds the basis function
+            %   values, finds the active weights based on the inputs,
+            %   then the basis functions are multiplied by the 
+            %   active weights to get the output.
             
             % normalize inputs
             originalinputs = originalinputs';
@@ -68,6 +70,8 @@ classdef Cmac < handle
             input=min(input,ones(obj.mNumInputs,1));
             input=max(input,zeros(obj.mNumInputs,1));
             
+            % find the basis function values
+            gammasum = 0;
             for j=1:obj.mNumLayers
                 
                 totalLocations= 0.0 ;
@@ -89,10 +93,13 @@ classdef Cmac < handle
                     loc = int32(floor( mod(totalLocations,obj.mMemSize-1)) )+1;
                     obj.mLocations(j)=loc;
                     
+                    gammasum = gammasum + obj.mGammas(j);
+                    
                 end
             end
             
-            obj.mGammas=obj.mGammas./sum(obj.mGammas); %normalization
+            % normalize the basis functions
+            obj.mGammas=obj.mGammas./gammasum;
             
             if(obj.mGammas > 1)
                 fprintf('Gamma2 is too large');
@@ -100,12 +107,10 @@ classdef Cmac < handle
             
             % find the weights
             for k = 1: obj.mNumOutputs
-                for j = 1 : obj.mNumLayers
-                    obj.mWeights(j,k) = obj.mMem(obj.mLocations(j),k);
-                end
+                obj.mWeights(:,k) = obj.mMem(obj.mLocations,k);
             end
             
-            
+            % this can be commented out
             if(obj.mWeights > 5)
                 fprintf('Weights possibly too large');
             end
@@ -119,15 +124,17 @@ classdef Cmac < handle
         end
         
         function TrainEmod(obj,betadt, nu, z, normZ)
+            %TRAINEMOD Summary of this method goes here
+            %   Updates the weights based on an
+            %   E-modification scheme.
+            
             for k = 1 : obj.mNumOutputs
-                for j=1:obj.mNumLayers
-                    a1 = obj.mGammas(j)*z(k);
-                    a2 =nu*normZ*obj.mWeights(j,k);
+                    a1 = obj.mGammas'*z(k);
+                    a2 =nu*normZ*obj.mWeights(:,k);
                     
                     dW = betadt*(a1 - a2);
-                    obj.mMem(obj.mLocations(j),k) = ...
-                        obj.mMem(obj.mLocations(j),k) + dW;
-                end
+                    obj.mMem(obj.mLocations,k) = ...
+                        obj.mMem(obj.mLocations,k) + dW;
             end
         end
         

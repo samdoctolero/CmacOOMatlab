@@ -33,15 +33,14 @@ classdef SupervisoryCmac < Cmac
         function TrainEmod(obj,betadt, nu, z, normZ)
             %METHOD1 Summary of this method goes here
             %   Detailed explanation goes here
+            
             for k = 1 : obj.mNumOutputs
-                for j=1:obj.mNumLayers
-                    a1 = obj.mGammas(j)*z(k);
-                    a2 =nu*normZ*(obj.mSupervisoryValues(k) - obj.mWeights(j,k));
-                    
-                    dW = betadt*(a1 + a2);
-                    obj.mMem(obj.mLocations(j),k) = ...
-                        obj.mMem(obj.mLocations(j),k) + dW;
-                end
+                a1 = obj.mGammas'*z(k);
+                a2 =nu*normZ*(obj.mSupervisoryValues(k) - obj.mWeights(:,k));
+                
+                dW = betadt*(a1 + a2);
+                obj.mMem(obj.mLocations,k) = ...
+                    obj.mMem(obj.mLocations,k) + dW;
             end
         end
     end
